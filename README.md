@@ -16,6 +16,7 @@ If you have some problems on other OS please add issues.
 ## Plans
   - add comments to each file in tree (done 65%)
   - add connector to redmine and other project management applications (done 25%)
+  - add grouping by month (week?)
 
 ## Usage
   - **mac and windows users**
