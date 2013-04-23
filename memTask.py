@@ -7,7 +7,14 @@ from collections import defaultdict
 import platform
 import re
 from pprint import pprint
-from ordereddict import OrderedDict
+from math import floor
+
+try:
+    # Sublime Text 3 needs relative import
+    from .ordereddict import OrderedDict
+except ValueError:
+    from ordereddict import OrderedDict
+
 # from collections import OrderedDict
 
 
@@ -15,9 +22,6 @@ class memTask(sublime_plugin.EventListener):
     def __init__(self):
         if not hasattr(self, "setting") is None:
             self.setting = {}
-            settings = sublime.load_settings(__name__ + '.sublime-settings')
-            self.setting['idle'] = settings.get('idle')
-            self.setting['date_format'] = settings.get('date_format')
 
         if platform.system() == 'Windows':
             self.dirSep = "\\"
@@ -25,9 +29,24 @@ class memTask(sublime_plugin.EventListener):
             self.dirSep = '/'
 
         self.setting['file_path'] = self.dirSep + "User" + self.dirSep + "memTask.json"
+
         self.stopTimer = True
         self.fileName = False
         self.fileView = False
+
+        if not sublime.version() or int(sublime.version()) > 3000:
+            # Sublime Text 3
+            timeout = 1000
+        else:
+            timeout = 0
+
+        sublime.set_timeout(lambda: self.finish_init(), timeout)
+
+    def finish_init(self):
+        settings = sublime.load_settings('memTask.sublime-settings')
+        self.setting['idle'] = settings.get('idle')
+        self.setting['date_format'] = settings.get('date_format')
+
         self.today = datetime.datetime.now().strftime(self.setting['date_format'])
         self.base = self.ReadBaseFromFile()
 
@@ -50,7 +69,7 @@ class memTask(sublime_plugin.EventListener):
                         "path_divider": self.dirSep
                     }
                 self.SetStatus('elapsedTime', 'Elapsed time: ' + str(self.SecToHM(self.base[fp]["time"])))
-                sublime.set_timeout(self.ElapsedTime, 5000)
+                sublime.set_timeout(lambda: self.ElapsedTime(), 5000)
         else:
             self.EraseStatus('elapsedTime')
 
@@ -79,9 +98,9 @@ class memTask(sublime_plugin.EventListener):
             view.erase_status(place)
 
     def SecToHM(self, seconds):
-        hours = seconds / 3600
+        hours = floor(seconds / 3600)
         seconds -= 3600 * hours
-        minutes = seconds / 60
+        minutes = floor(seconds / 60)
         return "%02d:%02d" % (hours, minutes)
 
     def ReadBaseFromFile(self):
@@ -93,7 +112,7 @@ class memTask(sublime_plugin.EventListener):
         except IOError as e:
             self.WriteBaseToFile({})
             data = {}
-            print 'memTask: Database file created.' + str(e)
+            print('memTask: Database file created.' + str(e))
             return data
 
     def WriteBaseToFile(self, data):
@@ -103,17 +122,9 @@ class memTask(sublime_plugin.EventListener):
 
 MT = memTask()
 
-
 class ShowTimeCommand(sublime_plugin.WindowCommand):
     def run(self):
         self.ShowReportVariants()
-
-    def IsDate(self, line):
-        try:
-            datetime.datetime.strptime(line, MT.setting['date_format'])
-            return True
-        except Exception:
-            return False
 
     def treeify(self, seq, removeDate):
         ret = {}
@@ -160,32 +171,8 @@ class ShowTimeCommand(sublime_plugin.WindowCommand):
         return ret
 
     def ShowGroupedBy(self, type):
-        def printLine(edit, tree, level):
-            forkAmount = 0
-            for key, value in tree.iteritems():
-                if key == 'time':
-                    amount = value
-                else:
-                    amount = 0
-                    view.insert(edit, view.size(), "\n")
-                    i = 0
-                    while i < level:
-                        view.insert(edit, view.size(), u"  ")
-                        i += 1
-                    view.insert(edit, view.size(), key)
-                    tempViewSize = view.size()
-                    if self.IsDate(key):
-                        MT.startFolding = view.size()
-                    amount = printLine(edit, tree[key], level + 1)
-                    view.insert(edit, tempViewSize, ': ' + MT.SecToHM(amount))
-                    forkAmount += amount
-                    if self.IsDate(key):
-                        if key != MT.today:
-                            view.fold(sublime.Region(MT.startFolding+7, view.size()))
-            return forkAmount or amount
-
         view = self.window.new_file()
-        view.set_syntax_file('Packages/memTask/' + __name__ + '.tmLanguage')
+        view.set_syntax_file('Packages/memTask/memTask.tmLanguage')
         Tree = lambda: defaultdict(Tree)
         tree = Tree()
         self.base = MT.ReadBaseFromFile()
@@ -196,9 +183,8 @@ class ShowTimeCommand(sublime_plugin.WindowCommand):
         if type == 'date':
             tree = OrderedDict(sorted(tree.items(), key=lambda k: k[0][:10].split('.')[::-1], reverse=True))
 
-        edit = view.begin_edit()
-        printLine(edit, tree, 0)
-        view.insert(edit, view.size(), "\n")
+        view.run_command("update_mem_task_view", {'tree': tree})
+
         view.set_name("all.time")
 
     def ShowReportVariants(self):
@@ -219,3 +205,40 @@ class ShowTimeCommand(sublime_plugin.WindowCommand):
 
         if picked == 1:
             self.ShowGroupedBy('project')
+
+class UpdateMemTaskViewCommand(sublime_plugin.TextCommand):
+    def run(self, edit, tree):
+        self.view = self.view.window().active_view()
+        self.printLine(edit, tree, 0)
+        self.view.insert(edit, 0, "\n")
+
+    def IsDate(self, line):
+        try:
+            datetime.datetime.strptime(line, MT.setting['date_format'])
+            return True
+        except Exception:
+            return False
+
+    def printLine(self, edit, tree, level):
+        forkAmount = 0
+        for key, value in tree.items():
+            if key == 'time':
+                amount = value
+            else:
+                amount = 0
+                self.view.insert(edit, self.view.size(), "\n")
+                i = 0
+                while i < level:
+                    self.view.insert(edit, self.view.size(), u"  ")
+                    i += 1
+                self.view.insert(edit, self.view.size(), key)
+                tempViewSize = self.view.size()
+                if self.IsDate(key):
+                    MT.startFolding = self.view.size()
+                amount = self.printLine(edit, tree[key], level + 1)
+                self.view.insert(edit, tempViewSize, ': ' + MT.SecToHM(amount))
+                forkAmount += amount
+                if self.IsDate(key):
+                    if key != MT.today:
+                        self.view.fold(sublime.Region(MT.startFolding+7, self.view.size()))
+        return forkAmount or amount
