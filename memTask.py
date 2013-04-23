@@ -210,7 +210,7 @@ class UpdateMemTaskViewCommand(sublime_plugin.TextCommand):
     def run(self, edit, tree):
         self.view = self.view.window().active_view()
         self.printLine(edit, tree, 0)
-        self.view.insert(edit, 0, "\n")
+        self.view.insert(edit, self.view.size(), "\n")
 
     def IsDate(self, line):
         try:
