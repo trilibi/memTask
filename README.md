@@ -26,6 +26,8 @@ If you have some problems on other OS please add issues.
     - ctrl+shift+p "memTask: Show spent time"
 
 ## Changelog
+  - **Version 0.1.3**
+    - Sublime text 3 support
   - **Version 0.1.2**
     - add date sorting
     - fixed incorect time in projects views
