@@ -1,7 +1,7 @@
 memTask
 =======
 
-memTask will remember all time which you spent in Sublime Text 2
+memTask will remember all time which you spent in Sublime Text 2 and Sublime Text 3
 
 ![interface](https://dl.dropbox.com/u/3478999/different/memTask.PNG "interface")
 
@@ -21,6 +21,7 @@ If you have some problems on other OS please add issues.
 ## Usage
   - **mac and windows users**
     - install plugin from package repository
+    - restart ST
     - ctrl+alt+t (ctrl+super+t on mac) will show all time. You can save this file with specific date in some folder, add comments
     - ctrl+shift+p "memTask: Show spent time"
 
