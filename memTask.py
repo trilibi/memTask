@@ -31,6 +31,7 @@ class memTask(sublime_plugin.EventListener):
         self.stopTimer = True
         self.fileName = False
         self.fileView = False
+        self.finish = False
 
         if not sublime.version() or int(sublime.version()) > 3000:
             # Sublime Text 3
@@ -47,6 +48,7 @@ class memTask(sublime_plugin.EventListener):
 
         self.today = datetime.datetime.now().strftime(self.setting['date_format'])
         self.base = self.ReadBaseFromFile()
+        self.finish = True
 
     def ElapsedTime(self):
         if self.stopTimer is False:
@@ -72,14 +74,15 @@ class memTask(sublime_plugin.EventListener):
             self.EraseStatus('elapsedTime')
 
     def on_modified(self, view):
-        self.lastChangeTime = datetime.datetime.now()
-        if self.fileName is False or self.fileName is None:
-            self.fileName = view.file_name()
-        if self.fileView is False or self.fileView is None:
-            self.fileView = view
-        if self.stopTimer is True:
-            self.stopTimer = False
-            self.ElapsedTime()
+        if self.finish:
+            self.lastChangeTime = datetime.datetime.now()
+            if self.fileName is False or self.fileName is None:
+                self.fileName = view.file_name()
+            if self.fileView is False or self.fileView is None:
+                self.fileView = view
+            if self.stopTimer is True:
+                self.stopTimer = False
+                self.ElapsedTime()
 
     def on_activated(self, view):
         self.fileName = view.file_name()
